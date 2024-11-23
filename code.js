@@ -10,6 +10,36 @@ const onMoveID = RPM.Manager.Plugins.getParameter(pluginName, "Mouse move event 
 const onWheelID = RPM.Manager.Plugins.getParameter(pluginName, "Mouse wheel event ID");
 
 const raycaster = new THREE.Raycaster();
+const va = new THREE.Vector3();
+const vb = new THREE.Vector3();
+
+function raycast(v, d)
+{
+	RPM.Core.Game.current.variables[v] = -1;
+	const intersects = raycaster.intersectObjects(RPM.Scene.Map.current.scene.children);
+	var mesh = null;
+	if (intersects.length > 0 && (d < 0 || intersects[0].distance < d))
+		mesh = intersects[0].object;
+	if (!!mesh)
+	{
+		for (var i = 1; i < RPM.Scene.Map.current.maxObjectsID + 1; i++)
+		{
+			var exitFor = false;
+			if (!RPM.Scene.Map.current.allObjects[i])
+				continue;
+			RPM.Core.MapObject.search(i, (result) =>
+			{
+				if (!!result.object.mesh && result.object.mesh === mesh)
+				{
+					RPM.Core.Game.current.variables[v] = i;
+					exitFor = true;
+				}
+			}, RPM.Core.ReactionInterpreter.currentObject);
+			if (exitFor)
+				break;
+		}
+	}
+}
 
 document.addEventListener("mousedown", (e) =>
 {
@@ -62,37 +92,14 @@ document.addEventListener("wheel", (e) =>
 	}
 });
 
-RPM.Manager.Plugins.registerCommand(pluginName, "Get object under cursor", (variable, x, y) =>
+RPM.Manager.Plugins.registerCommand(pluginName, "Get object under cursor", (variableID, x, y) =>
 {
 	if (RPM.Manager.Stack.top instanceof RPM.Scene.Map && !RPM.Scene.Map.current.loading)
 	{
 		const cx =  (x / RPM.Common.ScreenResolution.CANVAS_WIDTH)  * 2 - 1;
 		const cy = -(y / RPM.Common.ScreenResolution.CANVAS_HEIGHT) * 2 + 1;
 		raycaster.setFromCamera(new THREE.Vector2(cx, cy), RPM.Scene.Map.current.camera.getThreeCamera());
-		RPM.Core.Game.current.variables[variable] = -1;
-		const intersects = raycaster.intersectObjects(RPM.Scene.Map.current.scene.children);
-		var mesh = null;
-		if (intersects.length > 0)
-			mesh = intersects[0].object;
-		if (!!mesh)
-		{
-			for (var i = 1; i < RPM.Scene.Map.current.maxObjectsID + 1; i++)
-			{
-				var exitFor = false;
-				if (!RPM.Scene.Map.current.allObjects[i])
-					continue;
-				RPM.Core.MapObject.search(i, (result) =>
-				{
-					if (!!result.object.mesh && result.object.mesh === mesh)
-					{
-						RPM.Core.Game.current.variables[variable] = i;
-						exitFor = true;
-					}
-				}, RPM.Core.ReactionInterpreter.currentObject);
-				if (exitFor)
-					break;
-			}
-		}
+		raycast(variableID, -1);
 	}
 });
 
@@ -130,4 +137,18 @@ RPM.Manager.Plugins.registerCommand(pluginName, "Lock pointer", () =>
 RPM.Manager.Plugins.registerCommand(pluginName, "Unlock pointer", () =>
 {
 	document.exitPointerLock();
+});
+
+RPM.Manager.Plugins.registerCommand(pluginName, "Raycast", (Ax, Ay, Az, Bx, By, Bz, variableID) =>
+{
+	if (RPM.Manager.Stack.top instanceof RPM.Scene.Map && !RPM.Scene.Map.current.loading)
+	{
+		const s = RPM.Datas.Systems.SQUARE_SIZE;
+		va.set((Ax + 0.5) * s, (Ay + 0.5) * s, (Az + 0.5) * s);
+		vb.set((Bx + 0.5) * s, (By + 0.5) * s, (Bz + 0.5) * s);
+		const dist = va.distanceTo(vb);
+		vb.sub(va).normalize();
+		raycaster.set(va, vb);
+		raycast(variableID, dist);
+	}
 });
