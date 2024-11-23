@@ -19,7 +19,12 @@ function raycast(v, d)
 	const intersects = raycaster.intersectObjects(RPM.Scene.Map.current.scene.children);
 	var mesh = null;
 	if (intersects.length > 0 && (d < 0 || intersects[0].distance < d))
-		mesh = intersects[0].object;
+	{
+		if (intersects[0].distance > 0)
+			mesh = intersects[0].object;
+		else if (intersects.length > 1)
+			mesh = intersects[1].object;
+	}
 	if (!!mesh)
 	{
 		for (var i = 1; i < RPM.Scene.Map.current.maxObjectsID + 1; i++)
