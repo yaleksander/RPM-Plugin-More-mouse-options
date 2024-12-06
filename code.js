@@ -136,12 +136,12 @@ RPM.Manager.Plugins.registerCommand(pluginName, "Get object screen position", (i
 
 RPM.Manager.Plugins.registerCommand(pluginName, "Lock pointer", () =>
 {
-	document.requestPointerLock();
+	RPM.Manager.GL.renderer.domElement.requestPointerLock();
 });
 
 RPM.Manager.Plugins.registerCommand(pluginName, "Unlock pointer", () =>
 {
-	document.exitPointerLock();
+	RPM.Manager.GL.renderer.domElement.exitPointerLock();
 });
 
 RPM.Manager.Plugins.registerCommand(pluginName, "Raycast", (Ax, Ay, Az, Bx, By, Bz, variableID) =>
