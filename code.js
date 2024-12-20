@@ -13,12 +13,30 @@ const raycaster = new THREE.Raycaster();
 const va = new THREE.Vector3();
 const vb = new THREE.Vector3();
 
-function raycast(v, d)
+function raycast(v, dist, ignore = false)
 {
 	RPM.Core.Game.current.variables[v] = -1;
 	const intersects = raycaster.intersectObjects(RPM.Scene.Map.current.scene.children);
 	var mesh = null;
-	if (intersects.length > 0 && (d < 0 || intersects[0].distance < d))
+	if (ignore && intersects.length > 0 && intersects[0].object === RPM.Core.Game.current.hero.mesh)
+		intersects.shift();
+	while (intersects.length > 0)
+	{
+		const img = intersects[0].object.material.map.source.data;
+		const canvas = document.createElement("canvas");
+		canvas.width = img.width;
+		canvas.height = img.height;
+		const ctx = canvas.getContext("2d");
+		ctx.drawImage(img, 0, 0);
+		const data = ctx.getImageData(0, 0, img.width, img.height).data;
+		const x = parseInt(intersects[0].uv.x * img.width);
+		const y = parseInt(intersects[0].uv.y * img.height);
+		if (data[(x + y * img.width) * 4 + 3] == 0)
+			intersects.shift();
+		else
+			break;
+	}
+	if (intersects.length > 0 && (dist < 0 || intersects[0].distance < dist))
 	{
 		if (intersects[0].distance > 0)
 			mesh = intersects[0].object;
@@ -97,14 +115,14 @@ document.addEventListener("wheel", (e) =>
 	}
 });
 
-RPM.Manager.Plugins.registerCommand(pluginName, "Get object under cursor", (variableID, x, y) =>
+RPM.Manager.Plugins.registerCommand(pluginName, "Get object under cursor", (variableID, x, y, ignoreHero) =>
 {
 	if (RPM.Manager.Stack.top instanceof RPM.Scene.Map && !RPM.Scene.Map.current.loading)
 	{
-		const cx =  (x / RPM.Common.ScreenResolution.CANVAS_WIDTH)  * 2 - 1;
-		const cy = -(y / RPM.Common.ScreenResolution.CANVAS_HEIGHT) * 2 + 1;
+		const cx =  (x / RPM.Common.ScreenResolution.SCREEN_X) * 2 - 1;
+		const cy = -(y / RPM.Common.ScreenResolution.SCREEN_Y) * 2 + 1;
 		raycaster.setFromCamera(new THREE.Vector2(cx, cy), RPM.Scene.Map.current.camera.getThreeCamera());
-		raycast(variableID, -1);
+		raycast(variableID, -1, ignoreHero);
 	}
 });
 
@@ -141,7 +159,12 @@ RPM.Manager.Plugins.registerCommand(pluginName, "Lock pointer", () =>
 
 RPM.Manager.Plugins.registerCommand(pluginName, "Unlock pointer", () =>
 {
-	RPM.Manager.GL.renderer.domElement.exitPointerLock();
+	document.exitPointerLock();
+});
+
+RPM.Manager.Plugins.registerCommand(pluginName, "Is pointer locked?", (variableID) =>
+{
+	RPM.Core.Game.current.variables[variableID] = document.pointerLockElement === RPM.Manager.GL.renderer.domElement;
 });
 
 RPM.Manager.Plugins.registerCommand(pluginName, "Raycast", (Ax, Ay, Az, Bx, By, Bz, variableID) =>
